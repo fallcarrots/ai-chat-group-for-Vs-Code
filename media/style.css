@@ -1,0 +1,1083 @@
+/*
+ * AI 群聊 Webview 样式
+ *
+ * 约定：
+ *   - 所有颜色、字体都使用 VS Code 主题变量（--vscode-*），自动适配深色/浅色主题；
+ *   - 颜色变量都给了 fallback，避免某些主题缺少变量时变成透明；
+ *   - 布局用 flex 撑满整个 Webview，只有消息区滚动。
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 1.5;
+}
+
+::selection {
+  background: var(--vscode-editor-selectionBackground);
+  color: var(--vscode-editor-selectionForeground, inherit);
+}
+
+*:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+/* 滚动条跟随主题 */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 5px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 角色主题色：由团队设置里的 role.color 动态映射到 VS Code 主题色板 */
+.role-color-blue {
+  --role-color: var(--vscode-charts-blue, #3794ff);
+}
+.role-color-purple {
+  --role-color: var(--vscode-charts-purple, #b180d7);
+}
+.role-color-green {
+  --role-color: var(--vscode-charts-green, #89d185);
+}
+.role-color-orange {
+  --role-color: var(--vscode-charts-orange, #d18616);
+}
+.role-color-red {
+  --role-color: var(--vscode-charts-red, #f14c4c);
+}
+.role-color-pink {
+  --role-color: var(--vscode-terminal-ansiBrightMagenta, #d670d6);
+}
+.role-color-cyan {
+  --role-color: var(--vscode-terminal-ansiBrightCyan, #29b8db);
+}
+.role-color-yellow {
+  --role-color: var(--vscode-charts-yellow, #cca700);
+}
+
+/* ==========================================================================
+   顶部区域
+   ========================================================================== */
+
+.app-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--vscode-panel-border, transparent);
+  background: var(--vscode-editor-background);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-logo {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.brand-text {
+  min-width: 0;
+}
+
+.brand-text h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.brand-text p {
+  margin: 1px 0 0;
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 12px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vscode-charts-green, #89d185);
+}
+
+.status.busy .status-dot {
+  background: var(--vscode-charts-orange, #d18616);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.status.busy {
+  color: var(--vscode-foreground);
+}
+
+.token-estimate {
+  padding: 3px 8px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 12px;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 9.5px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* ==========================================================================
+   群成员条
+   ========================================================================== */
+
+.members {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 7px 20px;
+  border-bottom: 1px solid var(--vscode-panel-border, transparent);
+}
+
+.members:empty {
+  display: none;
+}
+
+.member {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 2px 6px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 12px;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+.member-avatar {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.member-name {
+  color: var(--role-color, var(--vscode-foreground));
+  font-weight: 600;
+}
+
+.member-model {
+  opacity: 0.75;
+}
+
+/* ==========================================================================
+   消息区
+   ========================================================================== */
+
+.messages {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 15px;
+  min-height: 0;
+  padding: 18px 20px 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+}
+
+.msg.user {
+  justify-content: flex-end;
+}
+
+.msg-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  max-width: min(760px, 82%);
+}
+
+.msg.user .msg-main {
+  align-items: flex-end;
+}
+
+.avatar {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border: 1px solid var(--role-color, var(--vscode-widget-border, transparent));
+  border-radius: 50%;
+  background: var(--vscode-editorWidget-background);
+  font-size: 16px;
+  line-height: 1;
+  user-select: none;
+}
+
+.msg-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+}
+
+.msg.user .msg-meta {
+  justify-content: flex-end;
+}
+
+.msg-meta .name {
+  color: var(--role-color, var(--vscode-foreground));
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.msg.user .msg-meta .name {
+  color: var(--vscode-descriptionForeground);
+}
+
+.badge {
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 9.5px;
+  line-height: 1.7;
+}
+
+.time {
+  font-size: 9.5px;
+  opacity: 0.8;
+}
+
+.bubble {
+  min-width: 0;
+  max-width: 100%;
+  padding: 9px 13px;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-left: 2px solid var(--role-color, transparent);
+  border-radius: 10px;
+  border-top-left-radius: 3px;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-foreground);
+  line-height: 1.65;
+}
+
+.msg.user .bubble {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  border-top-right-radius: 3px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.msg.failed .bubble {
+  border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+}
+
+.msg.stopped .bubble {
+  opacity: 0.92;
+}
+
+.bubble-body {
+  min-width: 0;
+}
+
+.user-text {
+  white-space: pre-wrap;
+}
+
+.note {
+  margin-top: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  font-style: italic;
+}
+
+.note.error-note {
+  color: var(--vscode-errorForeground);
+}
+
+/* 打字指示器 */
+.typing {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding-top: 5px;
+}
+
+.typing i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--vscode-descriptionForeground);
+  animation: blink 1.2s infinite ease-in-out;
+}
+
+.typing i:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.typing i:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+/* 消息悬浮操作 */
+.msg-actions {
+  opacity: 0;
+  transition: opacity 0.12s ease-in-out;
+}
+
+.msg:hover .msg-actions,
+.msg:focus-within .msg-actions {
+  opacity: 1;
+}
+
+.link-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  font-family: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+/* ==========================================================================
+   Markdown 渲染样式
+   ========================================================================== */
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p {
+  margin: 0.45em 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin: 0.9em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.markdown h1 {
+  font-size: 1.28em;
+}
+.markdown h2 {
+  font-size: 1.17em;
+}
+.markdown h3 {
+  font-size: 1.08em;
+}
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  font-size: 1em;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0.4em 0;
+  padding-left: 1.4em;
+}
+
+.markdown li {
+  margin: 0.15em 0;
+}
+
+.markdown li > p {
+  margin: 0;
+}
+
+.markdown blockquote {
+  margin: 0.55em 0;
+  padding: 2px 0 2px 10px;
+  border-left: 3px solid var(--role-color, var(--vscode-textBlockQuote-border));
+  background: var(--vscode-textBlockQuote-background);
+  color: var(--vscode-descriptionForeground);
+}
+
+.markdown blockquote p {
+  margin: 0.2em 0;
+}
+
+.markdown hr {
+  height: 0;
+  margin: 0.9em 0;
+  border: 0;
+  border-top: 1px solid var(--vscode-panel-border, transparent);
+}
+
+.markdown a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.markdown a:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+.markdown strong {
+  font-weight: 600;
+}
+
+.markdown del {
+  opacity: 0.75;
+}
+
+.markdown :not(pre) > code,
+.empty-tip code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--vscode-textCodeBlock-background);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.92em;
+}
+
+/* 代码块 */
+.code-block {
+  margin: 0.6em 0;
+  overflow: hidden;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 6px;
+  background: var(--vscode-textCodeBlock-background);
+}
+
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 9px;
+  border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  color: var(--vscode-descriptionForeground);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+}
+
+.code-lang {
+  text-transform: lowercase;
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+}
+
+.code-block code {
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--vscode-editor-foreground, var(--vscode-foreground));
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: calc(var(--vscode-editor-font-size, 13px) * 0.92);
+  line-height: 1.55;
+  white-space: pre;
+  tab-size: 4;
+}
+
+/* ==========================================================================
+   工具调用卡片
+   ========================================================================== */
+
+.tool-card {
+  margin: 1px 0 5px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-left: 2px solid var(--vscode-descriptionForeground);
+  border-radius: 6px;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  overflow: hidden;
+}
+
+.tool-card summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  cursor: pointer;
+  font-family: var(--vscode-editor-font-family, monospace);
+  line-height: 1.6;
+  list-style: none;
+  user-select: none;
+}
+
+.tool-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-card summary::before {
+  content: '▸';
+  flex: 0 0 auto;
+  color: var(--vscode-descriptionForeground);
+}
+
+.tool-card[open] summary::before {
+  content: '▾';
+}
+
+.tool-card summary:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.tool-card.running summary {
+  color: var(--vscode-descriptionForeground);
+}
+
+.tool-card.ok {
+  border-left-color: var(--vscode-charts-green, #89d185);
+}
+
+.tool-card.error {
+  border-left-color: var(--vscode-errorForeground);
+}
+
+.tool-card.error summary {
+  color: var(--vscode-errorForeground);
+}
+
+.tool-body:empty {
+  display: none;
+}
+
+.tool-preview {
+  max-height: 260px;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  background: var(--vscode-textCodeBlock-background);
+  color: var(--vscode-editor-foreground, var(--vscode-foreground));
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: calc(var(--vscode-editor-font-size, 13px) * 0.88);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   系统提示 / 错误卡片
+   ========================================================================== */
+
+.system-note {
+  align-self: center;
+  max-width: 760px;
+  margin: 1px auto;
+  padding: 3px 11px;
+  border: 1px dashed var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 10px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.notice {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 9px 12px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 8px;
+  background: var(--vscode-textBlockQuote-background);
+  color: var(--vscode-foreground);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.notice.warn {
+  border-color: var(--vscode-inputValidation-warningBorder);
+  background: var(--vscode-inputValidation-warningBackground);
+}
+
+.notice.error {
+  border-color: var(--vscode-inputValidation-errorBorder);
+  background: var(--vscode-inputValidation-errorBackground);
+}
+
+.notice-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   按钮
+   ========================================================================== */
+
+.ghost-btn,
+.primary-btn,
+.send-btn,
+.stop-btn,
+.sample {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.ghost-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-widget-border, transparent));
+  border-radius: 5px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  font-size: 11.5px;
+}
+
+.ghost-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.primary-btn {
+  padding: 5px 13px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-size: 11.5px;
+}
+
+.primary-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.primary-btn.small {
+  padding: 3px 10px;
+  font-size: 11px;
+}
+
+/* ==========================================================================
+   空状态
+   ========================================================================== */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 640px;
+  margin: auto;
+  padding: 30px 20px 40px;
+  text-align: center;
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 10px;
+  border: 1px solid var(--vscode-widget-border, transparent);
+  border-radius: 16px;
+  background: var(--vscode-editorWidget-background);
+  font-size: 26px;
+  user-select: none;
+}
+
+.empty-state h2 {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.empty-desc {
+  max-width: 520px;
+  margin: 0 0 14px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.member-preview {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.member-pill {
+  padding: 3px 10px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 12px;
+  background: var(--vscode-editorWidget-background);
+  font-size: 11px;
+}
+
+.member-pill.empty-team {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+.samples {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 520px;
+  margin-bottom: 14px;
+}
+
+.sample {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 7px;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-foreground);
+  font-size: 11.5px;
+  text-align: left;
+}
+
+.sample:hover {
+  border-color: var(--vscode-focusBorder);
+}
+
+.sample-title {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 9.5px;
+}
+
+.empty-tip {
+  max-width: 540px;
+  margin: 0 0 14px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  line-height: 1.7;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* ==========================================================================
+   输入区
+   ========================================================================== */
+
+.composer {
+  flex: 0 0 auto;
+  padding: 11px 20px 9px;
+  border-top: 1px solid var(--vscode-panel-border, transparent);
+  background: var(--vscode-editor-background);
+}
+
+.judge-status {
+  margin: 0 2px 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.judge-status[hidden] {
+  display: none;
+}
+
+.composer-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border, transparent));
+  border-radius: 8px;
+  background: var(--vscode-input-background);
+  transition: border-color 0.12s ease-in-out;
+}
+
+.composer-box:focus-within {
+  border-color: var(--vscode-focusBorder);
+}
+
+#input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 22px;
+  max-height: 160px;
+  padding: 2px 2px;
+  overflow-y: auto;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: 1.55;
+  resize: none;
+}
+
+#input::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.composer-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.send-btn {
+  padding: 4px 12px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-size: 11.5px;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.send-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.stop-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-widget-border, transparent));
+  border-radius: 5px;
+  background: var(--vscode-inputValidation-errorBackground);
+  color: var(--vscode-foreground);
+  font-size: 11.5px;
+}
+
+.stop-btn:hover {
+  background: var(--vscode-inputValidation-errorBorder);
+  color: var(--vscode-editor-background);
+}
+
+.composer-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 5px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+}
+
+.char-count.limit {
+  color: var(--vscode-errorForeground);
+  font-weight: 600;
+}
+
+/* 回到底部 */
+.scroll-bottom {
+  position: fixed;
+  right: 26px;
+  bottom: 106px;
+  z-index: 10;
+  padding: 5px 10px;
+  border: 1px solid var(--vscode-widget-border, transparent);
+  border-radius: 14px;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.25));
+  font-family: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+.scroll-bottom:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* ==========================================================================
+   动画 & 响应式
+   ========================================================================== */
+
+@keyframes blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing i,
+  .status.busy .status-dot {
+    animation: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .brand-text p {
+    display: none;
+  }
+
+  .app-header {
+    flex-wrap: wrap;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .app-header,
+  .members {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .messages {
+    padding: 14px 12px 10px;
+  }
+
+  .composer {
+    padding: 9px 12px 8px;
+  }
+
+  .msg-main {
+    max-width: 88%;
+  }
+
+  .member-model {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 5px;
+  }
+
+  .status {
+    padding: 2px 7px;
+  }
+
+  .ghost-btn {
+    padding: 3px 7px;
+  }
+
+  .scroll-bottom {
+    right: 14px;
+    bottom: 100px;
+  }
+}

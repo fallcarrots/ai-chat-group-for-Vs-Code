@@ -1,0 +1,656 @@
+/*
+ * 团队设置面板样式
+ * 与聊天面板一致：全部使用 VS Code 主题变量，自动适配深色/浅色主题。
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--vscode-editor-background);
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+  line-height: 1.5;
+}
+
+*:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+::selection {
+  background: var(--vscode-editor-selectionBackground);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 5px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ==========================================================================
+   顶部
+   ========================================================================== */
+
+.page-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--vscode-panel-border, transparent);
+  background: var(--vscode-editor-background);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.brand-logo {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  font-size: 17px;
+}
+
+.brand-text h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.save-status {
+  margin: 1px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+}
+
+.save-status[data-state='dirty'] {
+  color: var(--vscode-charts-orange, #d18616);
+}
+.save-status[data-state='saving'] {
+  color: var(--vscode-charts-blue, #3794ff);
+}
+.save-status[data-state='saved'] {
+  color: var(--vscode-charts-green, #89d185);
+}
+.save-status[data-state='error'] {
+  color: var(--vscode-errorForeground);
+}
+
+.header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ==========================================================================
+   按钮
+   ========================================================================== */
+
+.primary-btn,
+.secondary-btn,
+.ghost-btn,
+.danger-btn {
+  padding: 5px 13px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 11.5px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.primary-btn {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+.primary-btn:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.secondary-btn {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+.secondary-btn:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.ghost-btn {
+  border-color: var(--vscode-button-border, var(--vscode-widget-border, transparent));
+  background: transparent;
+  color: var(--vscode-foreground);
+}
+.ghost-btn:hover:not(:disabled) {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.danger-btn {
+  border-color: var(--vscode-inputValidation-errorBorder, transparent);
+  background: var(--vscode-inputValidation-errorBackground);
+  color: var(--vscode-errorForeground);
+  font-weight: 600;
+}
+.danger-btn:hover:not(:disabled) {
+  border-color: var(--vscode-errorForeground);
+  background: var(--vscode-inputValidation-errorBorder);
+  color: var(--vscode-editor-background);
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled,
+.ghost-btn:disabled,
+.danger-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.primary-btn.small,
+.secondary-btn.small,
+.ghost-btn.small,
+.danger-btn.small {
+  padding: 3px 9px;
+  font-size: 11px;
+}
+
+.ghost-btn.tiny {
+  min-width: 26px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+/* ==========================================================================
+   主区域 / 卡片
+   ========================================================================== */
+
+.page-main {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 18px 24px 48px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.card {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 9px;
+  background: var(--vscode-editorWidget-background);
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 13px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.section-desc {
+  margin: 3px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.count {
+  display: inline-block;
+  min-width: 19px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 10px;
+  font-weight: 400;
+  text-align: center;
+}
+
+/* ==========================================================================
+   表单控件
+   ========================================================================== */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px 14px;
+}
+
+.scheduling-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-label {
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+}
+
+.field.span-2 {
+  grid-column: span 2;
+}
+
+input[type='text'],
+input[type='number'],
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-widget-border, transparent));
+  border-radius: 4px;
+  outline: none;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+textarea {
+  padding: 7px 9px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 84px;
+}
+
+input[type='text']:focus,
+input[type='number']:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 5px;
+  color: var(--vscode-foreground);
+  font-size: 11.5px;
+  user-select: none;
+}
+
+.checkbox-row input,
+.switch input {
+  margin: 0;
+  accent-color: var(--vscode-button-background);
+}
+
+.hint {
+  margin: 10px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+/* ==========================================================================
+   Provider / Role 卡片
+   ========================================================================== */
+
+.entity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.entity-card {
+  padding: 12px 13px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 7px;
+  background: var(--vscode-editor-background);
+}
+
+.entity-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.entity-actions {
+  flex-shrink: 0;
+}
+
+.entity-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.entity-tag {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 9px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 9.5px;
+}
+
+.entity-id,
+.static-value {
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entity-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.key-badge {
+  padding: 1px 7px;
+  border-radius: 9px;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.key-badge.ok {
+  background: var(--vscode-testing-iconPassed, #89d185);
+  color: var(--vscode-editor-background);
+}
+
+.key-badge.warn {
+  border: 1px solid var(--vscode-inputValidation-warningBorder, transparent);
+  background: var(--vscode-inputValidation-warningBackground);
+  color: var(--vscode-foreground);
+}
+
+.order-label {
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Role 卡片头部：emoji + 名称 + 操作 */
+.role-head {
+  align-items: flex-start;
+}
+
+.role-identity {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 470px;
+}
+
+.emoji-input {
+  flex: 0 0 58px;
+  width: 58px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.role-name-input {
+  flex: 1 1 auto;
+  font-weight: 600;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.prompt-field {
+  margin-top: 11px;
+}
+
+.role-warning {
+  margin: 9px 0 0;
+  padding: 6px 9px;
+  border-left: 3px solid var(--vscode-inputValidation-warningBorder, var(--vscode-charts-orange));
+  background: var(--vscode-inputValidation-warningBackground);
+  color: var(--vscode-foreground);
+  font-size: 10.5px;
+}
+
+.empty-card {
+  padding: 22px 16px;
+  border: 1px dashed var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 7px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11.5px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+/* ==========================================================================
+   错误 / Toast / 底部
+   ========================================================================== */
+
+.error-banner {
+  flex: 0 0 auto;
+  margin: 14px 24px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--vscode-inputValidation-errorBorder);
+  border-radius: 7px;
+  background: var(--vscode-inputValidation-errorBackground);
+  color: var(--vscode-foreground);
+  font-size: 11.5px;
+}
+
+.error-banner strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.error-banner ul {
+  margin: 0;
+  padding-left: 1.4em;
+  line-height: 1.7;
+}
+
+.bottom-hint {
+  margin: 18px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  max-width: min(460px, calc(100vw - 48px));
+  padding: 9px 14px;
+  border: 1px solid var(--vscode-widget-border, transparent);
+  border-radius: 7px;
+  background: var(--vscode-notifications-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-notifications-foreground, var(--vscode-foreground));
+  box-shadow: 0 4px 16px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.toast.success {
+  border-color: var(--vscode-charts-green, #89d185);
+}
+.toast.warn {
+  border-color: var(--vscode-inputValidation-warningBorder);
+}
+.toast.error {
+  border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+/* ==========================================================================
+   自定义确认弹窗（不用 window.confirm：VS Code Webview 里不可靠）
+   ========================================================================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.modal {
+  width: min(460px, 100%);
+  padding: 18px 20px 16px;
+  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, transparent));
+  border-radius: 9px;
+  background: var(--vscode-editorWidget-background);
+  box-shadow: 0 8px 28px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.4));
+}
+
+.modal h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.modal-message {
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-size: 11.5px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.modal-actions .danger-btn,
+.modal-actions .primary-btn {
+  min-width: 68px;
+}
+
+/* ==========================================================================
+   响应式
+   ========================================================================== */
+
+@media (max-width: 780px) {
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 11px 14px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .page-main {
+    padding: 14px 14px 40px;
+  }
+
+  .card {
+    padding: 13px;
+  }
+
+  .scheduling-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .field.span-2 {
+    grid-column: span 1;
+  }
+
+  .entity-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .entity-actions {
+    justify-content: flex-start;
+  }
+
+  .role-identity {
+    width: 100%;
+    max-width: none;
+  }
+
+  .error-banner {
+    margin: 10px 14px 0;
+  }
+}

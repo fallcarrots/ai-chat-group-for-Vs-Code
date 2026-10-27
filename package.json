@@ -1,0 +1,330 @@
+{
+  "name": "ai-chat-group",
+  "displayName": "AI 群聊",
+  "description": "可自由扩展的多 Agent 群聊：任意 OpenAI 兼容 Provider、任意角色与模型，支持串行/并行调度。",
+  "version": "0.0.1",
+  "publisher": "fallcarrots",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI"
+  ],
+  "keywords": [
+    "ai",
+    "chat",
+    "multi-agent",
+    "openai",
+    "deepseek",
+    "glm"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ai-chat-group.openChat",
+        "title": "打开 AI 群聊面板",
+        "category": "AI 群聊"
+      },
+      {
+        "command": "ai-chat-group.openTeamSettings",
+        "title": "团队设置",
+        "category": "AI 群聊"
+      },
+      {
+        "command": "ai-chat-group.setApiKey",
+        "title": "设置 API Key",
+        "category": "AI 群聊"
+      },
+      {
+        "command": "ai-chat-group.toggleTools",
+        "title": "切换 DSH 外包工具",
+        "category": "AI 群聊"
+      }
+    ],
+    "configuration": {
+      "title": "AI 群聊",
+      "properties": {
+        "aiChatGroup.providers": {
+          "type": "array",
+          "markdownDescription": "OpenAI 兼容提供商列表，数量不限。每个提供商包含 `id`（唯一，用于绑定角色和 SecretStorage 中的 Key）、`name`、`baseUrl`，以及可选的 `models` 模型 ID 建议列表。\n\n推荐直接使用命令 **「AI 群聊: 团队设置」** 可视化编辑；API Key 请用命令或团队设置面板写入 SecretStorage，不要写进 settings.json。",
+          "default": [
+            {
+              "id": "deepseek",
+              "name": "DeepSeek官方",
+              "baseUrl": "https://api.deepseek.com/v1",
+              "models": [
+                "deepseek-chat",
+                "deepseek-reasoner"
+              ]
+            },
+            {
+              "id": "zhipu",
+              "name": "智谱GLM",
+              "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+              "models": [
+                "glm-4-plus",
+                "glm-4-flash",
+                "glm-4-air"
+              ]
+            }
+          ],
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "baseUrl"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]+$",
+                "description": "唯一 ID，用于角色绑定与 SecretStorage"
+              },
+              "name": {
+                "type": "string",
+                "description": "展示名称"
+              },
+              "baseUrl": {
+                "type": "string",
+                "description": "OpenAI 兼容接口的版本根地址，扩展会自动拼接 /chat/completions"
+              },
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "模型 ID 建议列表，仅用于团队设置面板的输入提示"
+              }
+            }
+          }
+        },
+        "aiChatGroup.roles": {
+          "type": "array",
+          "markdownDescription": "AI 角色列表，数量不限，**数组顺序就是发言顺序**。每个角色包含 `id`、`name`、`prompt`（system prompt）、`providerId`、`model`，以及可选的 `emoji`、`color`、`enabled`。\n\n推荐直接使用命令 **「AI 群聊: 团队设置」** 可视化编辑，支持添加/删除/排序/启用禁用。",
+          "default": [
+            {
+              "id": "pm",
+              "name": "项目经理",
+              "emoji": "🧑‍💼",
+              "color": "blue",
+              "providerId": "deepseek",
+              "model": "deepseek-chat",
+              "enabled": true,
+              "prompt": "你是「项目经理」，正在一个多 AI 协作群聊中主持讨论。\n\n你的职责：\n1. 判断需求是否清晰；缺关键信息时给出可执行的默认假设，并列出需要用户确认的问题；\n2. 给出精简的技术方案：目标、范围、关键选型；\n3. 把工作拆成可执行任务，明确建议由哪位角色负责；\n4. 指出主要风险（兼容性、性能、安全、成本等）。\n\n输出要求：\n- 使用 Markdown 小标题 + 列表，控制在 400 字以内；\n- 不要复述用户原话，不要客套，不要写“好的，我将……”这类过程性废话；\n- 直接面向群里的其他专家给出可讨论、可审查的方案；\n- 本轮只输出方案，不要替其他角色做详细设计。"
+            },
+            {
+              "id": "backend",
+              "name": "后端专家",
+              "emoji": "🗄️",
+              "color": "purple",
+              "providerId": "zhipu",
+              "model": "glm-4-flash",
+              "enabled": true,
+              "prompt": "你是「后端专家」，正在一个多 AI 协作群聊中参与技术方案讨论。\n\n审查重点：\n1. 接口设计：路径、方法、入参/出参、状态码、流式返回（SSE）是否合理；\n2. 数据模型与存储：是否需要持久化、索引、迁移；\n3. 安全：鉴权、API Key 管理、输入校验、日志脱敏；\n4. 稳定性：超时、重试、限流、错误码映射、可观测性；\n5. 可测试性：哪些逻辑应抽成纯函数、如何做单测。\n\n输出要求：\n- 先给结论：`结论：通过` / `结论：有条件通过` / `结论：需要修改`，并用一句话说明原因；\n- 再列不超过 5 条具体建议，格式为“问题 → 改法”，必要时附极少量代码或接口示例；\n- 使用 Markdown，控制在 350 字以内；\n- 不要复述别人已经说过的内容；只从后端视角发言。"
+            },
+            {
+              "id": "frontend",
+              "name": "前端专家",
+              "emoji": "🎨",
+              "color": "green",
+              "providerId": "deepseek",
+              "model": "deepseek-chat",
+              "enabled": true,
+              "prompt": "你是「前端专家」，正在一个多 AI 协作群聊中参与技术方案讨论。\n\n审查重点：\n1. 页面结构与信息层级：消息列表、成员区、输入区是否清晰；\n2. 状态管理：流式增量更新、并发请求、进行中/错误/空状态；\n3. 交互细节：回车发送、中文输入法组合态（isComposing）、自动滚动、停止生成、复制；\n4. 安全与渲染：Markdown 渲染、HTML 转义、链接协议白名单；\n5. VS Code Webview 适配：主题变量、深色/浅色模式、可访问性、窄面板布局。\n\n输出要求：\n- 先给结论：`结论：通过` / `结论：有条件通过` / `结论：需要修改`，并用一句话说明原因；\n- 再列不超过 5 条具体建议，格式为“问题 → 改法”；\n- 使用 Markdown，控制在 350 字以内；\n- 不要复述别人已经说过的内容；只从前端视角发言。"
+            }
+          ],
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "prompt",
+              "providerId",
+              "model"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9._-]+$",
+                "description": "唯一角色 ID"
+              },
+              "name": {
+                "type": "string",
+                "description": "群聊里显示的角色名"
+              },
+              "prompt": {
+                "type": "string",
+                "description": "system prompt，每次请求都会作为 messages[0] 发送"
+              },
+              "providerId": {
+                "type": "string",
+                "description": "绑定的提供商 ID，必须存在于 aiChatGroup.providers"
+              },
+              "model": {
+                "type": "string",
+                "description": "模型 ID，例如 deepseek-chat"
+              },
+              "temperature": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 2,
+                "default": 0.7,
+                "description": "该角色的采样温度，0 ~ 2；不填时跟随全局 aiChatGroup.temperature（默认 0.7）。"
+              },
+              "emoji": {
+                "type": "string",
+                "description": "头像 emoji"
+              },
+              "color": {
+                "type": "string",
+                "enum": [
+                  "blue",
+                  "purple",
+                  "green",
+                  "orange",
+                  "red",
+                  "pink",
+                  "cyan",
+                  "yellow"
+                ],
+                "description": "气泡与头像的主题色"
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true,
+                "description": "是否参与群聊；禁用后不会发言，也不会出现在成员条"
+              }
+            }
+          }
+        },
+        "aiChatGroup.scheduling": {
+          "type": "string",
+          "enum": [
+            "serial",
+            "parallel",
+            "lead-then-parallel"
+          ],
+          "enumDescriptions": [
+            "按角色顺序串行，后发言者能看到前面所有角色的本轮输出",
+            "所有启用角色并行，彼此看不到本轮输出",
+            "第一个启用角色先发言，其余角色并行且都能看到首位角色的输出"
+          ],
+          "default": "lead-then-parallel",
+          "markdownDescription": "角色调度模式。推荐在「团队设置」里修改。"
+        },
+        "aiChatGroup.chatMode": {
+          "type": "string",
+          "enum": [
+            "work",
+            "casual"
+          ],
+          "enumDescriptions": [
+            "工作模式：按调度策略让角色依次或并行汇报。",
+            "闲聊模式：随机选一个角色开场，然后随机换人接龙 2-3 轮，像微信群一样自由聊天。"
+          ],
+          "default": "work",
+          "markdownDescription": "群聊模式。`work` 按调度与汇总角色协作；`casual` 忽略调度/汇总，随机接龙 2-3 轮。"
+        },
+        "aiChatGroup.summaryRoleId": {
+          "type": "string",
+          "default": "pm",
+          "markdownDescription": "汇总角色 ID；所有角色发言结束后，该角色会再做一次汇总发言。留空表示不汇总。必须是 `aiChatGroup.roles` 中已启用的角色。"
+        },
+        "aiChatGroup.maxConcurrency": {
+          "type": "integer",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "并行调度时最多同时发起的请求数。"
+        },
+        "aiChatGroup.demoMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "演示模式：不发真实请求，用动态角色生成演示内容，方便在没有 API Key 时预览界面。"
+        },
+        "aiChatGroup.enableHeartbeat": {
+          "type": "boolean",
+          "default": false,
+          "description": "冷场心跳：面板可见时每 2 分钟检查一次，超过 5 分钟无人发言则由 AI 主动开话题。默认关闭，连续 3 次主动发言后休眠，直到用户发言。"
+        },
+        "aiChatGroup.enableTools": {
+          "type": "boolean",
+          "default": true,
+          "description": "允许 AI 调用 delegate_task_to_dsh，将读取文件/搜索代码/执行命令的任务外包给本地 DeepSeek Harness。关闭后请求不再携带 tools；工作区未受信任时也会自动禁用。"
+        },
+        "aiChatGroup.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 2,
+          "description": "采样温度，越高越发散。"
+        },
+        "aiChatGroup.judgeModelId": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "可选。casual 模式隐形裁判使用的模型 ID（需属于**第一个启用角色**绑定的 Provider）；留空时自动从该 Provider 的 `models` 列表中按 flash/mini/lite 等启发式挑选最便宜模型。"
+        },
+        "aiChatGroup.maxTokens": {
+          "type": "integer",
+          "default": 1200,
+          "minimum": 128,
+          "maximum": 8192,
+          "description": "单次回复的最大 token 数（max_tokens）。"
+        },
+        "aiChatGroup.requestTimeoutMs": {
+          "type": "integer",
+          "default": 90000,
+          "minimum": 5000,
+          "maximum": 600000,
+          "description": "连接超时与流式空闲超时，单位毫秒。"
+        },
+        "aiChatGroup.maxContextChars": {
+          "type": "integer",
+          "default": 6000,
+          "minimum": 1000,
+          "maximum": 40000,
+          "description": "最近窗口内历史记录的最大字符数（从最近的消息往前截取）。超过 maxHistoryMessages 的旧消息会先被压缩成摘要。"
+        },
+        "aiChatGroup.maxHistoryMessages": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 2,
+          "maximum": 200,
+          "description": "发送给模型时保留的最近历史消息条数。超过这个数量后，最老的消息会自动压缩成一段 200 字以内的会议摘要，作为 system 消息放在角色 prompt 之后。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "@types/vscode": "1.90.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fallcarrots/my-fullstack-journey.git",
+    "directory": "ai-chat-group"
+  }
+}

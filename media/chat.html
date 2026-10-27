@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      CSP 说明：
+        - 默认禁止一切资源；
+        - 样式/脚本只允许 Webview 自身资源（main.js 用 nonce 放行）；
+        - 不引入任何 CDN，Markdown 渲染由 media/main.js 自行实现，离线可用。
+      {{cspSource}} / {{nonce}} 由 src/webviewHtml.ts 在加载时替换。
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src {{cspSource}} data: https:; style-src {{cspSource}} 'unsafe-inline'; font-src {{cspSource}}; script-src 'nonce-{{nonce}}';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{styleUri}}" />
+    <title>AI 群聊</title>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">AI</div>
+        <div class="brand-text">
+          <h1>AI 群聊</h1>
+          <p>多 Agent 协作 · 角色与模型完全由团队设置驱动</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <span id="status" class="status idle" title="当前状态">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="status-text">空闲</span>
+        </span>
+        <span
+          id="token-estimate"
+          class="token-estimate"
+          title="当前请求 payload 的预估 Token：汉字 1 字≈1.5 token，其他字符约 4 字符/token"
+          hidden
+        ></span>
+        <button id="btn-team-settings" class="ghost-btn" type="button" title="添加/删除 Provider 与角色">
+          ⚙️ 团队设置
+        </button>
+        <button id="btn-settings" class="ghost-btn" type="button" title="打开扩展设置">
+          设置
+        </button>
+        <button id="btn-clear" class="ghost-btn" type="button" title="清空聊天记录">
+          清空
+        </button>
+      </div>
+    </header>
+
+    <!-- 群成员：由 main.js 根据 init/config 消息渲染 -->
+    <div id="members" class="members" aria-label="群成员"></div>
+
+    <main id="messages" class="messages" role="log" aria-live="polite" aria-label="群聊消息">
+      <section id="empty-state" class="empty-state">
+        <div class="empty-icon" aria-hidden="true">💬</div>
+        <h2>开始一场多 AI 协作讨论</h2>
+        <p class="empty-desc">
+          发送需求后，团队成员会按「团队设置」里的顺序与调度模式发言。
+          Provider、角色、模型、头像和颜色都可以随时增删改。
+        </p>
+
+        <div id="empty-members" class="member-preview"></div>
+
+        <div class="samples" aria-label="示例需求">
+          <button
+            class="sample"
+            type="button"
+            data-sample="帮我设计一个 VS Code 扩展：在侧边栏里做一个支持多模型群聊的面板，要求流式输出、Markdown 渲染、深色主题自适应。"
+          >
+            <span class="sample-title">示例 1</span>
+            设计一个多模型群聊 VS Code 扩展
+          </button>
+          <button
+            class="sample"
+            type="button"
+            data-sample="给现有的 Node.js 服务新增一个 /api/chat 流式接口，调用 DeepSeek，需要处理超时、限流和错误重试。"
+          >
+            <span class="sample-title">示例 2</span>
+            新增一个流式聊天接口
+          </button>
+        </div>
+
+        <p class="empty-tip">
+          先打开「团队设置」添加 Provider 和角色，再为 Provider 配置 API Key；
+          也可以开启 <code>aiChatGroup.demoMode</code> 免密钥预览界面。
+        </p>
+
+        <div class="empty-actions">
+          <button class="primary-btn" type="button" data-command="openTeamSettings">
+            ⚙️ 团队设置
+          </button>
+          <button class="ghost-btn" type="button" data-command="setApiKey">设置 API Key</button>
+          <button class="ghost-btn" type="button" data-command="openSettings">打开设置</button>
+        </div>
+      </section>
+    </main>
+
+    <button id="scroll-bottom" class="scroll-bottom" type="button" title="回到最新消息" hidden>
+      ↓ 回到底部
+    </button>
+
+    <footer class="composer">
+      <div id="judge-status" class="judge-status" role="status" aria-live="polite" hidden>
+        🤔 正在分析该由谁接话...
+      </div>
+      <div class="composer-box">
+        <textarea
+          id="input"
+          rows="1"
+          placeholder="描述你的需求，Enter 发送，Shift+Enter 换行…"
+          aria-label="输入需求"
+        ></textarea>
+        <div class="composer-actions">
+          <button id="btn-stop" class="stop-btn" type="button" title="停止本轮生成" hidden>
+            停止
+          </button>
+          <button id="btn-send" class="send-btn" type="button" title="发送 (Enter)" disabled>
+            发送
+          </button>
+        </div>
+      </div>
+      <div class="composer-hint">
+        <span id="hint">Enter 发送 · Shift+Enter 换行 · 内容会发送给上方配置的多个模型</span>
+        <span id="char-count" class="char-count"></span>
+      </div>
+    </footer>
+
+    <script nonce="{{nonce}}" src="{{scriptUri}}"></script>
+  </body>
+</html>

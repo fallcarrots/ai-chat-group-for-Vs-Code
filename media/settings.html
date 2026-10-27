@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src {{cspSource}} data: https:; style-src {{cspSource}} 'unsafe-inline'; font-src {{cspSource}}; script-src 'nonce-{{nonce}}';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{styleUri}}" />
+    <title>AI 群聊 · 团队设置</title>
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">⚙️</div>
+        <div class="brand-text">
+          <h1>团队设置</h1>
+          <p id="save-status" class="save-status" data-state="loading">加载中…</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-open-chat" class="ghost-btn" type="button">打开群聊</button>
+        <button id="btn-json-settings" class="ghost-btn" type="button">settings.json</button>
+        <button id="btn-save" class="primary-btn" type="button" disabled>保存更改</button>
+      </div>
+    </header>
+
+    <div id="error-banner" class="error-banner" hidden>
+      <strong>保存失败</strong>
+      <ul id="error-list"></ul>
+    </div>
+
+    <main class="page-main">
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>调度策略</h2>
+            <p class="section-desc">决定角色按照什么顺序、什么并发方式发言。</p>
+          </div>
+        </div>
+        <div class="form-grid scheduling-grid">
+          <label class="field">
+            <span class="field-label">聊天模式</span>
+            <select id="chat-mode">
+              <option value="work">工作模式（依次/并行汇报）</option>
+              <option value="casual">闲聊模式（随机接龙）</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field-label">发言模式</span>
+            <select id="scheduling"></select>
+          </label>
+          <label class="field">
+            <span class="field-label">最大并发</span>
+            <input id="max-concurrency" type="number" min="1" max="10" step="1" />
+          </label>
+          <label class="field">
+            <span class="field-label">汇总角色</span>
+            <select id="summary-role"></select>
+          </label>
+          <label class="checkbox-row">
+            <input id="demo-mode" type="checkbox" />
+            <span>演示模式（不调用真实模型）</span>
+          </label>
+          <label class="checkbox-row">
+            <input id="enable-heartbeat" type="checkbox" />
+            <span>冷场心跳（空闲 5 分钟后主动开话题）</span>
+          </label>
+        </div>
+        <p id="scheduling-hint" class="hint"></p>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>提供商 <span id="provider-count" class="count">0</span></h2>
+            <p class="section-desc">
+              任意 OpenAI 兼容接口。API Key 保存在 VS Code SecretStorage，不会写入 settings.json。
+            </p>
+          </div>
+          <button id="btn-add-provider" class="secondary-btn" type="button">+ 添加提供商</button>
+        </div>
+        <div id="providers" class="entity-list"></div>
+        <div id="provider-datalists"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <div>
+            <h2>角色 <span id="role-count" class="count">0</span></h2>
+            <p class="section-desc">
+              数组顺序就是发言顺序。每个角色独立绑定 Provider + 模型，并拥有自己的 system prompt。
+            </p>
+          </div>
+          <button id="btn-add-role" class="secondary-btn" type="button">+ 添加角色</button>
+        </div>
+        <div id="roles" class="entity-list"></div>
+      </section>
+
+      <p class="bottom-hint">
+        快捷键：Ctrl/Cmd + S 保存 · 修改会写入用户级 settings.json ·
+        没有未保存修改时，删除会立即保存
+      </p>
+    </main>
+
+    <div id="modal-overlay" class="modal-overlay" hidden>
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        aria-describedby="modal-message"
+      >
+        <h2 id="modal-title">确认删除</h2>
+        <p id="modal-message" class="modal-message"></p>
+        <div class="modal-actions">
+          <button id="modal-cancel" class="ghost-btn" type="button">取消</button>
+          <button id="modal-ok" class="danger-btn" type="button">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script nonce="{{nonce}}" src="{{scriptUri}}"></script>
+  </body>
+</html>
