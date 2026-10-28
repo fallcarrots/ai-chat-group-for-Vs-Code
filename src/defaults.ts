@@ -130,7 +130,7 @@ export const DEFAULT_SCHEDULING: SchedulingMode = 'lead-then-parallel';
 /** 默认仍是工作汇报模式 */
 export const DEFAULT_CHAT_MODE: ChatMode = 'work';
 
-export const CHAT_MODES: readonly ChatMode[] = ['work', 'casual'];
+export const CHAT_MODES: readonly ChatMode[] = ['work', 'casual', 'free'];
 
 /** casual 模式追加到每个角色系统提示词末尾 */
 export const CASUAL_SYSTEM_SUFFIX =
@@ -140,6 +140,13 @@ export const CASUAL_SYSTEM_SUFFIX =
 /** casual 模式中，轮到后续群友接话时的注入指令 */
 export const CASUAL_REPLY_INSTRUCTION =
   '你看，群友刚说了这段话，你觉得呢？像网友一样回复他，可以赞同、反驳或吐槽。';
+
+/** free 模式：每个角色并发阅读黑板后自主决定是否发言 */
+export const FREE_DECISION_INSTRUCTION =
+  '你身处一个自由群聊。请阅读最新上下文。你可以自主决定是否发言。' +
+  '如果你想说话，请严格输出 JSON：`{"action": "speak", "content": "你的发言"}`。' +
+  '如果你觉得不知道说什么，或者想先让别人说，请严格输出 JSON：`{"action": "wait"}`。' +
+  '不要输出任何其他额外解释。';
 
 export const DEFAULT_SUMMARY_ROLE_ID = 'pm';
 

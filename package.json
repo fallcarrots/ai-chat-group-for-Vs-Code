@@ -2,7 +2,7 @@
   "name": "ai-chat-group",
   "displayName": "AI 群聊",
   "description": "可自由扩展的多 Agent 群聊：任意 OpenAI 兼容 Provider、任意角色与模型，支持串行/并行调度。",
-  "version": "0.0.1",
+  "version": "2.0.0",
   "publisher": "fallcarrots",
   "engines": {
     "vscode": "^1.90.0"
@@ -221,14 +221,16 @@
           "type": "string",
           "enum": [
             "work",
-            "casual"
+            "casual",
+            "free"
           ],
           "enumDescriptions": [
             "工作模式：按调度策略让角色依次或并行汇报。",
-            "闲聊模式：随机选一个角色开场，然后随机换人接龙 2-3 轮，像微信群一样自由聊天。"
+            "闲聊模式：随机选一个角色开场，然后随机换人接龙 2-3 轮，像微信群一样自由聊天。",
+            "自由发言（黑板模型）：所有角色并发阅读最新上下文，自主决定是否发言；总线每 1 秒消费一条发言并再次广播。"
           ],
           "default": "work",
-          "markdownDescription": "群聊模式。`work` 按调度与汇总角色协作；`casual` 忽略调度/汇总，随机接龙 2-3 轮。"
+          "markdownDescription": "群聊模式。`work` 按调度与汇总角色协作；`casual` 随机接龙 2-3 轮；`free` 使用黑板模型并发广播、自主接话。"
         },
         "aiChatGroup.summaryRoleId": {
           "type": "string",

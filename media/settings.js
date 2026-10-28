@@ -252,7 +252,10 @@
       providers: providers,
       roles: roles,
       scheduling: validScheduling(source.scheduling),
-      chatMode: source.chatMode === 'casual' ? 'casual' : 'work',
+      chatMode:
+        source.chatMode === 'casual' || source.chatMode === 'free'
+          ? source.chatMode
+          : 'work',
       summaryRoleId: typeof source.summaryRoleId === 'string' ? source.summaryRoleId : '',
       maxConcurrency: clampNumber(source.maxConcurrency, 1, 10, 3),
       demoMode: source.demoMode === true,
@@ -581,6 +584,11 @@
     if (state.config.chatMode === 'casual') {
       els.schedulingHint.textContent =
         '闲聊模式：忽略发言顺序、汇总角色和最大并发，随机选一个角色开场，然后自动接龙 2-3 轮。';
+      return;
+    }
+    if (state.config.chatMode === 'free') {
+      els.schedulingHint.textContent =
+        '自由发言：所有启用角色并发阅读最新上下文，自主决定是否发言；总线每 1 秒消费一条发言并再次广播。';
       return;
     }
 
@@ -1455,7 +1463,7 @@
     });
 
 
-    if (payload.chatMode !== 'casual' && payload.summaryRoleId) {
+    if (payload.chatMode === 'work' && payload.summaryRoleId) {
       const summaryRole = payload.roles.find(function (role) {
         return role.id === payload.summaryRoleId;
       });

@@ -49,6 +49,7 @@ import {
 import {
   CASUAL_REPLY_INSTRUCTION,
   CASUAL_SYSTEM_SUFFIX,
+  FREE_DECISION_INSTRUCTION,
   HISTORY_SUMMARY_PROMPT,
   MAX_SUMMARY_CHARS,
   SUMMARY_INSTRUCTION,
@@ -91,6 +92,12 @@ const HEARTBEAT_IDLE_MS = 5 * 60_000;
 const HEARTBEAT_MAX_PROACTIVE = 3;
 /** 心跳 AI 请求超时（与裁判相同） */
 const HEARTBEAT_TIMEOUT_MS = 3_000;
+/** free 模式最大自发交互轮数（按真正渲染到 UI 的 AI 消息计） */
+const FREE_MAX_TURNS = 10;
+/** free 模式总线消费间隔 */
+const FREE_BUS_INTERVAL_MS = 1_000;
+/** free 模式全员 wait 后的冷场等待 */
+const FREE_DEADLOCK_WAIT_MS = 5_000;
 
 /** 本地 DeepSeek Harness headless 接口 */
 const DSH_SUBMIT_URL = 'http://127.0.0.1:3080/x/headless';
@@ -203,6 +210,18 @@ interface RoundContribution {
   text: string;
 }
 
+interface FreeQueueItem {
+  role: RoleDefinition;
+  content: string;
+  timestamp: number;
+  providerLabel: string;
+  model: string;
+}
+
+type FreeDecision =
+  | { action: 'speak'; content: string }
+  | { action: 'wait' };
+
 interface DshOutcome {
   ok: boolean;
   text?: string;
@@ -254,6 +273,8 @@ export class ChatPanel {
   private heartbeatSleeping = false;
   /** 上次心跳尝试时间：失败后 5 分钟内不重复烧 Token */
   private lastHeartbeatAttemptAt = 0;
+  /** free 模式提示只在切换模式/清空后显示一次 */
+  private freeModeNoticeShown = false;
 
   public static createOrShow(context: vscode.ExtensionContext): void {
     const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
@@ -314,6 +335,9 @@ export class ChatPanel {
           this.postConfig();
           if (event.affectsConfiguration('aiChatGroup.enableHeartbeat')) {
             this.syncHeartbeatTimer();
+          }
+          if (event.affectsConfiguration('aiChatGroup.chatMode')) {
+            this.freeModeNoticeShown = false;
           }
         }
       },
@@ -543,6 +567,9 @@ export class ChatPanel {
     const load = this.reloadHistory();
     this.historyLoadPromise = load;
     await load;
+    if (readChatMode() === 'free') {
+      this.freeModeNoticeShown = false;
+    }
     this.postInit();
   }
 
@@ -761,6 +788,7 @@ export class ChatPanel {
     this.historySummary = '';
     this.summaryCoveredCount = 0;
     this.lastTokenEstimate = 0;
+    this.freeModeNoticeShown = false;
     this.wakeHeartbeat();
     this.post({ type: 'clear' });
     this.post({ type: 'token-estimate', tokens: 0 });
@@ -778,6 +806,14 @@ export class ChatPanel {
   ): Promise<void> {
     const signal = this.abortController?.signal;
     if (!signal) {
+      return;
+    }
+
+    const chatMode = readChatMode();
+
+    // free：黑板广播 + 总线，不走历史压缩、@、裁判、随机或汇总
+    if (chatMode === 'free') {
+      await this.runFreeDiscussion(roles);
       return;
     }
 
@@ -801,7 +837,6 @@ export class ChatPanel {
       historySummary: historyWindow.summary,
     };
 
-    const chatMode = readChatMode();
     const mentionedRoles = findMentionedRoles(requirement, roles);
 
     // 用户点名：跳过随机/调度/汇总，按 @ 出现顺序依次回复
@@ -1136,6 +1171,238 @@ export class ChatPanel {
       signal.removeEventListener('abort', forwardAbort);
       this.post({ type: 'judge-end' });
     }
+  }
+
+  /**
+   * free（自由发言）模式：
+   *   - 把当前黑板上下文并发广播给所有启用角色；
+   *   - 每个角色返回 speak / wait JSON；
+   *   - speak 进入 messageQueue，总线每 1 秒消费一条并渲染；
+   *   - 渲染后立即以最新历史再次广播；
+   *   - 全员 wait / 队列空 -> 5 秒后随机角色强制催促；
+   *   - 最多渲染 FREE_MAX_TURNS 条 AI 消息。
+   */
+  private async runFreeDiscussion(roles: RoleDefinition[]): Promise<void> {
+    const signal = this.abortController?.signal;
+    if (!signal || roles.length === 0) {
+      return;
+    }
+
+    if (!this.freeModeNoticeShown) {
+      this.post({
+        type: 'system-note',
+        text: '⚡ 自由发言模式已开启，大家可以自由接话',
+      });
+      this.freeModeNoticeShown = true;
+    }
+
+    const queue: FreeQueueItem[] = [];
+    let rendered = 0;
+    let lastRoleId = '';
+
+    // 第一轮广播：所有角色并发看当前黑板
+    await this.broadcastFree(roles, queue, signal);
+
+    while (rendered < FREE_MAX_TURNS) {
+      this.throwIfStopped(signal);
+
+      if (queue.length === 0) {
+        const gotMessage = await this.waitForFreeQueue(
+          queue,
+          roles,
+          signal,
+          lastRoleId,
+        );
+        if (!gotMessage) {
+          break;
+        }
+      }
+
+      // 总线节拍：每秒消费一条
+      await delay(FREE_BUS_INTERVAL_MS, signal);
+      this.throwIfStopped(signal);
+
+      const item = queue.shift();
+      if (!item) {
+        continue;
+      }
+
+      this.renderFreeMessage(item);
+      lastRoleId = item.role.id;
+      rendered += 1;
+
+      if (rendered >= FREE_MAX_TURNS) {
+        break;
+      }
+
+      // 连锁反应：新发言进入历史后，立刻再次广播
+      await this.broadcastFree(roles, queue, signal);
+    }
+  }
+
+  /** 并发广播当前黑板，收集所有 speak 结果入队 */
+  private async broadcastFree(
+    roles: RoleDefinition[],
+    queue: FreeQueueItem[],
+    signal: AbortSignal,
+  ): Promise<void> {
+    this.throwIfStopped(signal);
+    this.postStatus(`⚡ ${roles.length} 个角色正在阅读黑板并决定是否发言…`);
+
+    const outcomes = await Promise.allSettled(
+      roles.map((role) => this.requestFreeDecision(role, signal)),
+    );
+
+    this.throwIfStopped(signal);
+
+    for (const outcome of outcomes) {
+      if (outcome.status === 'fulfilled' && outcome.value) {
+        queue.push(outcome.value);
+      }
+    }
+  }
+
+  /** 单个角色的黑板决策请求；wait / 解析失败 / 无 Key 都返回 undefined */
+  private async requestFreeDecision(
+    role: RoleDefinition,
+    signal: AbortSignal,
+  ): Promise<FreeQueueItem | undefined> {
+    const target = await prepareRoleTarget(this.context, role);
+    const contextText = formatHistory(
+      this.history,
+      getConfig<number>('maxContextChars', 6000),
+    );
+
+    const messages: ChatMessage[] = [
+      {
+        role: 'system',
+        content: `${role.prompt}
+
+---
+${FREE_DECISION_INSTRUCTION}`,
+      },
+      {
+        role: 'user',
+        content:
+          `【群聊最新上下文】
+${contextText}
+
+` +
+          '请根据最新上下文自主决定是否发言。',
+      },
+    ];
+
+    const result = await streamChatCompletion({
+      provider: target.provider,
+      model: target.model,
+      messages,
+      temperature: target.temperature,
+      maxTokens: getConfig<number>('maxTokens', 1200),
+      timeoutMs: getConfig<number>('requestTimeoutMs', 90_000),
+      signal,
+      onDelta: () => {
+        /* 决策阶段不展示流式内容 */
+      },
+    });
+
+    const decision = parseFreeDecision(result.text);
+    if (!decision || decision.action !== 'speak') {
+      return undefined;
+    }
+
+    return {
+      role,
+      content: decision.content,
+      timestamp: Date.now(),
+      providerLabel: target.provider.label,
+      model: target.model,
+    };
+  }
+
+  /** 队列空时等 5 秒；仍无人发言则强制一个角色催促 */
+  private async waitForFreeQueue(
+    queue: FreeQueueItem[],
+    roles: RoleDefinition[],
+    signal: AbortSignal,
+    lastRoleId: string,
+  ): Promise<boolean> {
+    const deadline = Date.now() + FREE_DEADLOCK_WAIT_MS;
+
+    while (Date.now() < deadline) {
+      this.throwIfStopped(signal);
+      if (queue.length > 0) {
+        return true;
+      }
+      await delay(250, signal);
+    }
+
+    if (queue.length === 0) {
+      queue.push(this.buildFreeNudge(roles, lastRoleId));
+    }
+
+    return queue.length > 0;
+  }
+
+  /** 冷场时随机角色强制催促，点名另一个角色 */
+  private buildFreeNudge(roles: RoleDefinition[], lastRoleId: string): FreeQueueItem {
+    const candidates = roles.filter((role) => role.id !== lastRoleId);
+    const pool = candidates.length > 0 ? candidates : roles;
+    const role = pool[Math.floor(Math.random() * pool.length)];
+
+    const targets = roles.filter((item) => item.id !== role.id);
+    const target =
+      targets.length > 0
+        ? targets[Math.floor(Math.random() * targets.length)]
+        : undefined;
+
+    const provider = readProviders().find((item) => item.id === role.providerId);
+    const content = target
+      ? `大家怎么都不说话了？@${target.name}，你先说。`
+      : '大家怎么都不说话了？随便聊点什么吧。';
+
+    return {
+      role,
+      content,
+      timestamp: Date.now(),
+      providerLabel: provider?.name ?? 'AI',
+      model: role.model,
+    };
+  }
+
+  /** 把总线消息渲染成普通 AI 气泡，并写入历史/持久化 */
+  private renderFreeMessage(item: FreeQueueItem): void {
+    this.postStatus(`${item.role.name} 正在发言…`);
+
+    const entry: HistoryEntry = {
+      id: this.nextId('a'),
+      kind: 'assistant',
+      text: item.content,
+      time: Date.now(),
+      roleId: item.role.id,
+      roleName: item.role.name,
+      emoji: item.role.emoji,
+      color: item.role.color,
+      providerLabel: item.providerLabel,
+      model: item.model,
+    };
+
+    this.post({
+      type: 'assistant-start',
+      entry: { ...entry, text: '' },
+    });
+    this.post({
+      type: 'assistant-delta',
+      id: entry.id,
+      delta: entry.text,
+    });
+    this.post({
+      type: 'assistant-end',
+      id: entry.id,
+    });
+
+    this.history.push(entry);
+    this.persistHistoryEntry(entry);
+    this.lastActivityAt = Date.now();
   }
 
   /**
@@ -2250,6 +2517,49 @@ function storedToHistory(
     stopped: message.stopped,
     error: message.error,
   };
+}
+
+function parseFreeDecision(text: string): FreeDecision | undefined {
+  let cleaned = text.trim();
+
+  // 兼容 ```json ... ``` / ``` ... ``` 包裹
+  const fence = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) {
+    cleaned = fence[1].trim();
+  }
+
+  // 兼容模型在 JSON 前后加解释；抓取第一个 { 到最后一个 }
+  const first = cleaned.indexOf('{');
+  const last = cleaned.lastIndexOf('}');
+  if (first >= 0 && last > first) {
+    cleaned = cleaned.slice(first, last + 1);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    return undefined;
+  }
+
+  if (!isRecord(parsed)) {
+    return undefined;
+  }
+
+  const action = typeof parsed.action === 'string' ? parsed.action.toLowerCase() : '';
+
+  if (action === 'wait') {
+    return { action: 'wait' };
+  }
+  if (
+    action === 'speak' &&
+    typeof parsed.content === 'string' &&
+    parsed.content.trim()
+  ) {
+    return { action: 'speak', content: parsed.content.trim() };
+  }
+
+  return undefined;
 }
 
 function extractJudgeText(value: unknown): string {

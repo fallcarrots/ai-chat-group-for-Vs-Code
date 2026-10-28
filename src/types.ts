@@ -22,7 +22,7 @@ export type RoleColor =
 export type SchedulingMode = 'serial' | 'parallel' | 'lead-then-parallel';
 
 /** 群聊模式：工作汇报 / 闲聊接龙 */
-export type ChatMode = 'work' | 'casual';
+export type ChatMode = 'work' | 'casual' | 'free';
 
 /** 用户可配置的 OpenAI 兼容提供商 */
 export interface ProviderDefinition {
